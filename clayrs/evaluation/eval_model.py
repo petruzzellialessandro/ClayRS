@@ -6,10 +6,11 @@ import pandas as pd
 
 if TYPE_CHECKING:
     from clayrs.content_analyzer.ratings_manager.ratings import Prediction, Rank, Ratings
-    from clayrs.evaluation.metrics.metrics import Metric
+    from clayrs.evaluation.metrics import Metric
 
 from clayrs.evaluation.eval_pipeline_modules.metric_evaluator import MetricEvaluator
-from clayrs.utils.const import logger, get_item_popularity
+from clayrs.utils.const import logger
+from clayrs.evaluation.utils import get_item_popularity
 
 
 class EvalModel:

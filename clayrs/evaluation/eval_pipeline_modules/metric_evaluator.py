@@ -5,7 +5,7 @@ import pandas as pd
 
 if TYPE_CHECKING:
     from clayrs.content_analyzer.ratings_manager.ratings import Prediction, Rank, Ratings
-    from clayrs.evaluation.metrics.metrics import Metric, FairnessMetric
+    from clayrs.evaluation.metrics import Metric, FairnessMetric
 
 from clayrs.utils.context_managers import get_progbar
 
