@@ -358,7 +358,7 @@ class CatalogCoverage(PredictionCoverage):
             their recommendation lists will be used to compute the CatalogCoverage
     """
 
-    def __init__(self, catalog: Set[str], top_n: int = None, k: int = None):
+    def __init__(self, catalog: Set[str]=None, top_n: int = None, k: int = None):
         super().__init__(catalog)
         self.__top_n = top_n
         self.__k = k
@@ -379,11 +379,13 @@ class CatalogCoverage(PredictionCoverage):
     def __repr__(self):
         return f'CatalogCoverage(catalog={self.catalog}, top_n={self.__top_n}, k={self.__k})'
 
-    def _get_covered(self, pred: Ratings):
+    def _get_covered(self, pred: Ratings, pop_per_items: Dict):
 
         # IF k is passed, then we choose randomly k users and calc catalog coverage
         # based on their predictions. We check that k is < n_user since if it's the equal
         # or it's greater, then all predictions generated for all user must be used
+        if self.catalog == None:
+            self.catalog = set(pop_per_items.keys())
         user_list = pred.unique_user_idx_column
         if self.__k is not None and self.__k < len(pred.unique_user_id_column):
 
@@ -619,7 +621,7 @@ class AvgPopularity(FairnessMetric):
         user_idx_truth = truth.unique_user_idx_column
         user_idx_pred = pred.user_map.convert_seq_str2int(truth.unique_user_id_column)
 
-        for uidx_pred, uidx_truth in zip(user_idx_pred, user_idx_truth):
+        for uidx_pred, _ in zip(user_idx_pred, user_idx_truth):
             user_predictions_idxs = pred.get_user_interactions(uidx_pred, as_indices=True)
             user_predictions_items = pred.item_id_column[user_predictions_idxs]
             metric_user = self._perform_single_user(user_predictions_items, pop_per_items)
