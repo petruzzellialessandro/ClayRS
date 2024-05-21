@@ -625,9 +625,11 @@ class AvgPopularity(FairnessMetric):
             metric_user = self._perform_single_user(user_predictions_items, pop_per_items)
             split_result['user_id'].append(uidx_pred)
             split_result[str(self)].append(metric_user)
-        split_result['user_id'] = list(uidx_pred.user_map.convert_seq_int2str(split_result['user_id']))
+        split_result['user_id'] = list(pred.user_map.convert_seq_int2str(split_result['user_id']))
         df_users = pd.DataFrame(split_result)
-        sys_map = np.nanmean(df_users[str(self)])
+        y = []
+        [y.extend(x.tolist()) for x in df_users[str(self)].tolist()]
+        sys_map = np.nanmean(y)
         df_sys = pd.DataFrame({'user_id': ['sys'], str(self): [sys_map]})
         df = pd.concat([df_users, df_sys])
         return df
@@ -650,13 +652,16 @@ class AvgPopularityAtK(AvgPopularity):
         user_idx_pred = pred.user_map.convert_seq_str2int(truth.unique_user_id_column)
 
         for uidx_pred, _ in zip(user_idx_pred, user_idx_truth):
-            user_predictions_items = user_predictions_items[:self.k]
+            user_predictions_idxs = pred.get_user_interactions(uidx_pred, as_indices=True)
+            user_predictions_items = pred.item_id_column[user_predictions_idxs][:self.k]
             metric_user = self._perform_single_user(user_predictions_items, pop_per_items)
             split_result['user_id'].append(uidx_pred)
             split_result[str(self)].append(metric_user)
-        split_result['user_id'] = list(uidx_pred.user_map.convert_seq_int2str(split_result['user_id']))
+        split_result['user_id'] = list(pred.user_map.convert_seq_int2str(split_result['user_id']))
         df_users = pd.DataFrame(split_result)
-        sys_map = np.nanmean(df_users[str(self)])
+        y = []
+        [y.extend(x.tolist()) for x in df_users[str(self)].tolist()]
+        sys_map = np.nanmean(y)
         df_sys = pd.DataFrame({'user_id': ['sys'], str(self): [sys_map]})
         df = pd.concat([df_users, df_sys])
         return df
@@ -665,7 +670,4 @@ class AvgPopularityAtK(AvgPopularity):
         return "AvgPopularity@{}".format(self.k)
 
     def __repr__(self):
-        return f"MAPAtK(k={self.k})"
-
-    
-
+        return "AvgPopularity@{}".format(self.k) 
