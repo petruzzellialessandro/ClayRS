@@ -6,7 +6,7 @@ from collections import Counter, defaultdict
 
 import pandas as pd
 import numpy as np
-from typing import Dict, Set, List, Union, TYPE_CHECKING
+from typing import Dict, Set, List, Union, TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
     from clayrs.content_analyzer import Ratings
@@ -16,6 +16,7 @@ from clayrs.evaluation.metrics.metrics import Metric
 from clayrs.evaluation.utils import get_avg_pop, pop_ratio_by_user, get_item_popularity, get_most_popular_items
 from clayrs.evaluation.exceptions import NotEnoughUsers
 from clayrs.utils.const import logger
+from clayrs.evaluation.metrics.metrics import Metric, handler_different_users
 
 
 class FairnessMetric(Metric):
@@ -24,7 +25,7 @@ class FairnessMetric(Metric):
     """
 
     @abstractmethod
-    def perform(self, split: Split):
+    def perform(self, split: Split, pop_per_item: Dict = None):
         raise NotImplementedError
 
 
@@ -575,3 +576,96 @@ class DeltaGap(GroupFairnessMetric):
             split_result['{} | {}'.format(str(self), group_name)].append(group_delta_gap)
 
         return pd.DataFrame(split_result)
+
+
+
+class AvgPopularity(FairnessMetric):
+    def __init__(self, sys_average: str = 'macro',
+                 precision: [Callable] = np.float64):
+        valid_avg = {'macro', 'micro'}
+        self.__avg = sys_average.lower()
+        self.__precision = precision
+        
+    @property
+    def relevant_threshold(self):
+        return self.__relevant_threshold
+
+    @property
+    def sys_avg(self):
+        return self.__avg
+
+    @property
+    def precision(self):
+        return self.__precision
+    
+
+    def __str__(self):
+        return "AvgPopularity"
+    
+    def _perform_single_user(self, user_predictions_items: np.ndarray, pop_per_items: Dict):
+        user_popularity_item = np.vectorize(pop_per_items.get)(user_predictions_items)
+        return user_popularity_item
+
+
+    @handler_different_users
+    def perform(self, split: Split, pop_per_items: Dict) -> pd.DataFrame:
+        pred = split.pred
+        truth = split.truth
+        if pop_per_items == None:
+            raise ValueError(f'Popularity per Items not valid for metric {self}')
+
+        split_result = {'user_id': [], str(self): []}
+
+        user_idx_truth = truth.unique_user_idx_column
+        user_idx_pred = pred.user_map.convert_seq_str2int(truth.unique_user_id_column)
+
+        for uidx_pred, uidx_truth in zip(user_idx_pred, user_idx_truth):
+            user_predictions_idxs = pred.get_user_interactions(uidx_pred, as_indices=True)
+            user_predictions_items = pred.item_id_column[user_predictions_idxs]
+            metric_user = self._perform_single_user(user_predictions_items, pop_per_items)
+            split_result['user_id'].append(uidx_pred)
+            split_result[str(self)].append(metric_user)
+        split_result['user_id'] = list(uidx_pred.user_map.convert_seq_int2str(split_result['user_id']))
+        df_users = pd.DataFrame(split_result)
+        sys_map = np.nanmean(df_users[str(self)])
+        df_sys = pd.DataFrame({'user_id': ['sys'], str(self): [sys_map]})
+        df = pd.concat([df_users, df_sys])
+        return df
+    
+
+class AvgPopularityAtK(AvgPopularity):
+    def __init__(self, k: int):
+        super().__init__()
+        self.k = k
+
+    def perform(self, split: Split, pop_per_items: Dict) -> pd.DataFrame:
+        pred = split.pred
+        truth = split.truth
+        if pop_per_items == None:
+            raise ValueError(f'Popularity per Items not valid for metric {self}')
+
+        split_result = {'user_id': [], str(self): []}
+
+        user_idx_truth = truth.unique_user_idx_column
+        user_idx_pred = pred.user_map.convert_seq_str2int(truth.unique_user_id_column)
+
+        for uidx_pred, _ in zip(user_idx_pred, user_idx_truth):
+            user_predictions_items = user_predictions_items[:self.k]
+            metric_user = self._perform_single_user(user_predictions_items, pop_per_items)
+            split_result['user_id'].append(uidx_pred)
+            split_result[str(self)].append(metric_user)
+        split_result['user_id'] = list(uidx_pred.user_map.convert_seq_int2str(split_result['user_id']))
+        df_users = pd.DataFrame(split_result)
+        sys_map = np.nanmean(df_users[str(self)])
+        df_sys = pd.DataFrame({'user_id': ['sys'], str(self): [sys_map]})
+        df = pd.concat([df_users, df_sys])
+        return df
+
+    def __str__(self):
+        return "AvgPopularity@{}".format(self.k)
+
+    def __repr__(self):
+        return f"MAPAtK(k={self.k})"
+
+    
+

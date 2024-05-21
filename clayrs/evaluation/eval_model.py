@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from clayrs.evaluation.metrics.metrics import Metric
 
 from clayrs.evaluation.eval_pipeline_modules.metric_evaluator import MetricEvaluator
-from clayrs.utils.const import logger
+from clayrs.utils.const import logger, get_item_popularity
 
 
 class EvalModel:
@@ -55,7 +55,8 @@ class EvalModel:
     def __init__(self,
                  pred_list: Union[List[Prediction], List[Rank]],
                  truth_list: List[Ratings],
-                 metric_list: List[Metric]):
+                 metric_list: List[Metric],
+                 original_ratings: List[Ratings] = None):
 
         if len(pred_list) == 0 and len(truth_list) == 0:
             raise ValueError("List containing predictions and list containing ground truths are empty!")
@@ -65,6 +66,11 @@ class EvalModel:
         self._pred_list = pred_list
         self._truth_list = truth_list
         self._metric_list = metric_list
+
+        self.original_ratings = original_ratings
+        self._pop_per_items = None
+        if self.original_ratings != None:
+            self._pop_per_items = get_item_popularity(original_ratings)
 
         self._yaml_report_result = None
 
@@ -162,7 +168,7 @@ class EvalModel:
             final_pred_list = self._pred_list
             final_truth_list = self._truth_list
 
-        sys_result, users_result = MetricEvaluator(final_pred_list, final_truth_list).eval_metrics(self.metric_list)
+        sys_result, users_result = MetricEvaluator(final_pred_list, final_truth_list, self._pop_per_items).eval_metrics(self.metric_list)
 
         # we save the sys result for report yaml
         self._yaml_report_result = sys_result.to_dict(orient='index')

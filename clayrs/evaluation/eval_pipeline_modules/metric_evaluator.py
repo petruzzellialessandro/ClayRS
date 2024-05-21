@@ -1,11 +1,11 @@
 from __future__ import annotations
-from typing import List, Tuple, Union, TYPE_CHECKING
+from typing import List, Tuple, Union, TYPE_CHECKING, Dict
 
 import pandas as pd
 
 if TYPE_CHECKING:
     from clayrs.content_analyzer.ratings_manager.ratings import Prediction, Rank, Ratings
-    from clayrs.evaluation.metrics.metrics import Metric
+    from clayrs.evaluation.metrics.metrics import Metric, FairnessMetric
 
 from clayrs.utils.context_managers import get_progbar
 
@@ -41,10 +41,11 @@ class MetricEvaluator:
     """
 
     # [ (total_pred, total_truth), (total_pred, total_truth) ...]
-    def __init__(self, pred_list: Union[List[Prediction], List[Rank]], truth_list: List[Ratings]):
+    def __init__(self, pred_list: Union[List[Prediction], List[Rank]], truth_list: List[Ratings], pop_per_items: Dict = None):
 
         self._pred_list = pred_list
         self._truth_list = truth_list
+        self._pop_per_items = pop_per_items
 
     def __repr__(self):
         return f'MetricEvaluator(pred_list={self._pred_list}, truth_list={self._truth_list})'
@@ -89,8 +90,10 @@ class MetricEvaluator:
 
                         pred = pred.filter_ratings(prediction_user_idxs)
                         truth = truth.filter_ratings(truth_user_idxs)
-
-                        metric_result = metric.perform(Split(pred, truth))
+                        if issubclass(metric, FairnessMetric):
+                            metric_result = metric.perform(Split(pred, truth), self._pop_per_items)
+                        else:
+                            metric_result = metric.perform(Split(pred, truth))
 
                         metric_result_list.append(metric_result)
 
