@@ -89,7 +89,7 @@ class MetricEvaluator:
 
                         pred = pred.filter_ratings(prediction_user_idxs)
                         truth = truth.filter_ratings(truth_user_idxs)
-                        if issubclass(metric, FairnessMetric):
+                        if issubclass(metric.__class__, FairnessMetric):
                             metric_result = metric.perform(Split(pred, truth), self._pop_per_items)
                         else:
                             metric_result = metric.perform(Split(pred, truth))
