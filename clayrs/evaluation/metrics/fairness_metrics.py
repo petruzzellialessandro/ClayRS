@@ -631,7 +631,7 @@ class AvgPopularity(FairnessMetric):
         df_users = pd.DataFrame(split_result)
         y = []
         [y.extend(x.tolist()) for x in df_users[str(self)].tolist()]
-        sys_map = np.nanmean(y)
+        sys_map = np.nanmean(np.array(list(map(lambda x: np.nan if x==None else x, y))))
         df_sys = pd.DataFrame({'user_id': ['sys'], str(self): [sys_map]})
         df = pd.concat([df_users, df_sys])
         return df
@@ -663,7 +663,7 @@ class AvgPopularityAtK(AvgPopularity):
         df_users = pd.DataFrame(split_result)
         y = []
         [y.extend(x.tolist()) for x in df_users[str(self)].tolist()]
-        sys_map = np.nanmean(y)
+        sys_map = np.nanmean(np.array(list(map(lambda x: np.nan if x==None else x, y))))
         df_sys = pd.DataFrame({'user_id': ['sys'], str(self): [sys_map]})
         df = pd.concat([df_users, df_sys])
         return df
